@@ -1,0 +1,7 @@
+{
+  "name": "AI Beauty Score Analyzer",
+  "description": "An application that uses AI to analyze a user's photo, provide a beauty score, highlight positive features, and offer improvement tips. The user can capture their image using the device's camera.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
