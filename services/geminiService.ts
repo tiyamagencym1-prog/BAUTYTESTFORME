@@ -2,14 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { BeautyAnalysis } from '../types';
 
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  throw new Error("API_KEY environment variable not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
-
 const analysisSchema = {
   type: Type.OBJECT,
   properties: {
@@ -32,6 +24,15 @@ const analysisSchema = {
 };
 
 export async function analyzeImageForBeauty(base64Image: string): Promise<BeautyAnalysis> {
+  const API_KEY = process.env.API_KEY;
+
+  if (!API_KEY) {
+    console.error("API_KEY environment variable not set.");
+    throw new Error("کلید API تنظیم نشده است. لطفاً تنظیمات محیط استقرار خود (مانند Vercel) را بررسی کنید.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -51,16 +52,24 @@ export async function analyzeImageForBeauty(base64Image: string): Promise<Beauty
       config: {
         responseMimeType: 'application/json',
         responseSchema: analysisSchema,
+        // FIX: Moved `systemInstruction` inside the `config` object.
+        systemInstruction: 'شما یک تحلیلگر زیبایی با هوش مصنوعی هستید. نقش شما ارائه تحلیلی سازنده، مثبت و محترمانه از ویژگی‌های چهره فرد در عکس است. لحنی حمایت‌گر و دلگرم‌کننده داشته باشید. از تولید محتوای توهین‌آمیز، مضر یا تبعیض‌آمیز خودداری کنید. بر اصول جهانی زیبایی‌شناسی مانند تقارن، شفافیت پوست و هماهنگی ویژگی‌ها تمرکز کنید. خروجی شما باید در قالب JSON باشد.',
       },
-      systemInstruction: 'شما یک تحلیلگر زیبایی با هوش مصنوعی هستید. نقش شما ارائه تحلیلی سازنده، مثبت و محترمانه از ویژگی‌های چهره فرد در عکس است. لحنی حمایت‌گر و دلگرم‌کننده داشته باشید. از تولید محتوای توهین‌آمیز، مضر یا تبعیض‌آمیز خودداری کنید. بر اصول جهانی زیبایی‌شناسی مانند تقارن، شفافیت پوست و هماهنگی ویژگی‌ها تمرکز کنید. خروجی شما باید در قالب JSON باشد.',
     });
 
     const jsonText = response.text.trim();
+    if (!jsonText.startsWith('{') && !jsonText.startsWith('[')) {
+        console.error("Received non-JSON response from Gemini:", jsonText);
+        throw new Error("پاسخ دریافتی از سرویس هوش مصنوعی معتبر نبود. لطفاً دوباره تلاش کنید.");
+    }
     const result = JSON.parse(jsonText) as BeautyAnalysis;
     return result;
 
   } catch (error) {
     console.error("Error calling Gemini API:", error);
+     if (error instanceof Error && (error.message.includes("API key not valid") || error.message.includes("API_KEY_INVALID"))) {
+        throw new Error("کلید API نامعتبر است. لطفاً کلید خود را در تنظیمات Vercel بررسی کنید.");
+    }
     throw new Error("متاسفانه در تحلیل تصویر مشکلی پیش آمد. لطفا دوباره تلاش کنید.");
   }
 }
