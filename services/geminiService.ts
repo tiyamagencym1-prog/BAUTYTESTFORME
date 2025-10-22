@@ -1,75 +1,31 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
 import { BeautyAnalysis } from '../types';
 
-const analysisSchema = {
-  type: Type.OBJECT,
-  properties: {
-    score: {
-      type: Type.INTEGER,
-      description: "امتیاز زیبایی از 0 تا 100.",
-    },
-    positive_points: {
-      type: Type.ARRAY,
-      description: "آرایه‌ای از سه رشته که هر کدام یک ویژگی مثبت چهره را توصیف می‌کنند.",
-      items: { type: Type.STRING },
-    },
-    improvement_tips: {
-      type: Type.ARRAY,
-      description: "آرایه‌ای از سه رشته که هر کدام یک نکته مفید برای بهبود ارائه می‌دهند.",
-      items: { type: Type.STRING },
-    },
-  },
-  required: ["score", "positive_points", "improvement_tips"],
-};
-
 export async function analyzeImageForBeauty(base64Image: string): Promise<BeautyAnalysis> {
-  const API_KEY = process.env.API_KEY;
-
-  if (!API_KEY) {
-    console.error("API_KEY environment variable not set.");
-    throw new Error("کلید API تنظیم نشده است. لطفاً تنظیمات محیط استقرار خود (مانند Vercel) را بررسی کنید.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
-
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: base64Image,
-            },
-          },
-          {
-            text: 'این تصویر را تحلیل کن. یک امتیاز زیبایی از 0 تا 100 بده. سه ویژگی مثبت چهره را لیست کن و دلیل زیبایی آن‌ها را توضیح بده. سه نکته کاربردی و مفید برای بهبود ظاهر ارائه بده.',
-          },
-        ],
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: analysisSchema,
-        // FIX: Moved `systemInstruction` inside the `config` object.
-        systemInstruction: 'شما یک تحلیلگر زیبایی با هوش مصنوعی هستید. نقش شما ارائه تحلیلی سازنده، مثبت و محترمانه از ویژگی‌های چهره فرد در عکس است. لحنی حمایت‌گر و دلگرم‌کننده داشته باشید. از تولید محتوای توهین‌آمیز، مضر یا تبعیض‌آمیز خودداری کنید. بر اصول جهانی زیبایی‌شناسی مانند تقارن، شفافیت پوست و هماهنگی ویژگی‌ها تمرکز کنید. خروجی شما باید در قالب JSON باشد.',
-      },
+      body: JSON.stringify({ image: base64Image }),
     });
 
-    const jsonText = response.text.trim();
-    if (!jsonText.startsWith('{') && !jsonText.startsWith('[')) {
-        console.error("Received non-JSON response from Gemini:", jsonText);
-        throw new Error("پاسخ دریافتی از سرویس هوش مصنوعی معتبر نبود. لطفاً دوباره تلاش کنید.");
-    }
-    const result = JSON.parse(jsonText) as BeautyAnalysis;
-    return result;
+    const result = await response.json();
 
-  } catch (error) {
-    console.error("Error calling Gemini API:", error);
-     if (error instanceof Error && (error.message.includes("API key not valid") || error.message.includes("API_KEY_INVALID"))) {
-        throw new Error("کلید API نامعتبر است. لطفاً کلید خود را در تنظیمات Vercel بررسی کنید.");
+    if (!response.ok) {
+      // Use the message from the serverless function's error response, or a default.
+      throw new Error(result.message || 'خطایی در ارتباط با سرور رخ داد.');
     }
-    throw new Error("متاسفانه در تحلیل تصویر مشکلی پیش آمد. لطفا دوباره تلاش کنید.");
+
+    return result as BeautyAnalysis;
+  } catch (error) {
+    console.error("Error calling backend API:", error);
+    // Re-throw the error to be caught by the UI component.
+    // If it's a network error, error.message will be populated.
+    // If it's an error from our API, we've already created an Error object with the message.
+    if (error instanceof Error) {
+        throw error;
+    }
+    throw new Error('یک خطای پیش‌بینی نشده در ارتباط با سرور رخ داد.');
   }
 }
