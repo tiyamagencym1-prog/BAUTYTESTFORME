@@ -1,8 +1,16 @@
 import { BeautyAnalysis } from '../types';
 
+// Using a proxy to bypass potential regional restrictions.
+const PROXY_URL = 'https://thingproxy.freeboard.io/fetch/';
+const API_ENDPOINT = '/api/analyze';
+
 export async function analyzeImageForBeauty(base64Image: string): Promise<BeautyAnalysis> {
+  // We need the full URL of our own API to pass to the proxy.
+  const targetUrl = new URL(API_ENDPOINT, window.location.origin).toString();
+  const proxiedUrl = `${PROXY_URL}${targetUrl}`;
+  
   try {
-    const response = await fetch('/api/analyze', {
+    const response = await fetch(proxiedUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -19,7 +27,7 @@ export async function analyzeImageForBeauty(base64Image: string): Promise<Beauty
 
     return result as BeautyAnalysis;
   } catch (error) {
-    console.error("Error calling backend API:", error);
+    console.error("Error calling backend API via proxy:", error);
     // Re-throw the error to be caught by the UI component.
     // If it's a network error, error.message will be populated.
     // If it's an error from our API, we've already created an Error object with the message.

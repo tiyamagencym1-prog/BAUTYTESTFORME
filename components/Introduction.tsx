@@ -19,7 +19,7 @@ const Introduction: React.FC<IntroductionProps> = ({ onStart }) => {
         bottom: 0,
       }}
     >
-      <div className="max-w-2xl">
+      <div className="max-w-2xl z-10">
         <h1 className="text-4xl sm:text-6xl font-bold mb-4 animate-fade-in-down" style={{ animation: 'fade-in-down 1s ease-out' }}>
           کشف زیبایی منحصر به فرد شما
         </h1>
@@ -33,6 +33,7 @@ const Introduction: React.FC<IntroductionProps> = ({ onStart }) => {
           شروع کنید
         </button>
       </div>
+
       <style>{`
         @keyframes fade-in-down {
           0% {
