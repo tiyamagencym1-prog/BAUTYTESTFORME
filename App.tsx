@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import WebcamCapture from './components/WebcamCapture';
 import AnalysisResult from './components/AnalysisResult';
@@ -6,11 +5,12 @@ import Spinner from './components/Spinner';
 import { BeautyAnalysis } from './types';
 import { analyzeImageForBeauty } from './services/geminiService';
 import RetryIcon from './components/RetryIcon';
+import Introduction from './components/Introduction';
 
-type AppState = 'IDLE' | 'CAPTURING' | 'ANALYZING' | 'RESULT' | 'ERROR';
+type AppState = 'INTRODUCTION' | 'IDLE' | 'CAPTURING' | 'ANALYZING' | 'RESULT' | 'ERROR';
 
 const App: React.FC = () => {
-  const [appState, setAppState] = useState<AppState>('IDLE');
+  const [appState, setAppState] = useState<AppState>('INTRODUCTION');
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<BeautyAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +43,10 @@ const App: React.FC = () => {
     setImageSrc(null);
     setAnalysisResult(null);
     setError(null);
+  };
+
+  const handleStart = () => {
+    setAppState('IDLE');
   };
   
   const renderContent = () => {
@@ -80,6 +84,10 @@ const App: React.FC = () => {
         );
     }
   };
+
+  if (appState === 'INTRODUCTION') {
+    return <Introduction onStart={handleStart} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4 sm:p-8 flex flex-col items-center">
