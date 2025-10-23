@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import CameraIcon from './CameraIcon';
 
@@ -46,15 +45,42 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({ onCapture, onCameraError 
     if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext('2d');
       if (context) {
-        canvasRef.current.width = videoRef.current.videoWidth;
-        canvasRef.current.height = videoRef.current.videoHeight;
-        context.drawImage(videoRef.current, 0, 0, videoRef.current.videoWidth, videoRef.current.videoHeight);
-        const dataUrl = canvasRef.current.toDataURL('image/jpeg');
+        const MAX_DIMENSION = 720;
+        let { videoWidth: width, videoHeight: height } = videoRef.current;
+
+        // Calculate new dimensions while maintaining aspect ratio to reduce image size
+        if (width > height) {
+          if (width > MAX_DIMENSION) {
+            height = Math.round(height * (MAX_DIMENSION / width));
+            width = MAX_DIMENSION;
+          }
+        } else {
+          if (height > MAX_DIMENSION) {
+            width = Math.round(width * (MAX_DIMENSION / height));
+            height = MAX_DIMENSION;
+          }
+        }
+
+        canvasRef.current.width = width;
+        canvasRef.current.height = height;
+
+        // The CSS transform flips the preview, but the captured image is not flipped by default.
+        // To match the preview (mirror image), we flip the canvas context.
+        // This provides a more intuitive experience for the user.
+        context.translate(width, 0);
+        context.scale(-1, 1);
+        context.drawImage(videoRef.current, 0, 0, width, height);
+        // Reset transform to avoid affecting subsequent draws
+        context.setTransform(1, 0, 0, 1, 0, 0);
+
+        // Use JPEG with quality 0.9 for further size reduction and better performance.
+        const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.9);
         const base64Data = dataUrl.split(',')[1];
         onCapture(base64Data);
       }
     }
   }, [onCapture]);
+
 
   return (
     <div className="w-full max-w-lg mx-auto flex flex-col items-center">

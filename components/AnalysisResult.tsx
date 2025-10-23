@@ -1,9 +1,9 @@
-
 import React from 'react';
-import { BeautyAnalysis } from '../types';
 
 interface AnalysisResultProps {
-  result: BeautyAnalysis;
+  score: number | null;
+  positive_points: string[];
+  improvement_tips: string[];
   imageSrc: string;
 }
 
@@ -19,16 +19,36 @@ const LightbulbIcon: React.FC = () => (
     </svg>
 );
 
-const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, imageSrc }) => {
-  const scoreColor = result.score > 75 ? 'text-green-400' : result.score > 50 ? 'text-yellow-400' : 'text-red-400';
+const ScoreDisplay: React.FC<{ score: number | null }> = ({ score }) => {
+    if (score === null) {
+        return <div className="text-7xl font-bold text-gray-500 animate-pulse">--</div>;
+    }
+    const scoreColor = score > 75 ? 'text-green-400' : score > 50 ? 'text-yellow-400' : 'text-red-400';
+    return <p className={`text-7xl font-bold ${scoreColor}`}>{score}</p>;
+};
 
+const AnimatedListItem: React.FC<{ children: React.ReactNode, iconColor: string }> = ({ children, iconColor }) => (
+    <li className="flex items-start animate-fade-in-up">
+        <span className={`${iconColor} mr-2 ml-2`}>&#8226;</span>
+        <span>{children}</span>
+    </li>
+);
+
+const AnalysisResult: React.FC<AnalysisResultProps> = ({ score, positive_points, improvement_tips, imageSrc }) => {
   return (
-    <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in-up">
+        <style>{`
+            @keyframes fade-in-up {
+                0% { opacity: 0; transform: translateY(20px); }
+                100% { opacity: 1; transform: translateY(0); }
+            }
+            .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
+        `}</style>
       <div className="flex flex-col items-center">
         <img src={`data:image/jpeg;base64,${imageSrc}`} alt="تحلیل شده" className="rounded-lg shadow-xl border-4 border-gray-700 w-full max-w-sm" />
         <div className="mt-6 text-center">
           <p className="text-lg text-gray-400">امتیاز زیبایی شما</p>
-          <p className={`text-7xl font-bold ${scoreColor}`}>{result.score}</p>
+          <ScoreDisplay score={score} />
         </div>
       </div>
       <div className="flex flex-col space-y-6">
@@ -37,12 +57,9 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, imageSrc }) => 
             <CheckIcon />
             دلایل زیبایی
           </h3>
-          <ul className="space-y-3 text-gray-300">
-            {result.positive_points.map((point, index) => (
-              <li key={index} className="flex items-start">
-                <span className="text-green-400 mr-2 ml-2">&#8226;</span>
-                <span>{point}</span>
-              </li>
+          <ul className="space-y-3 text-gray-300 min-h-[100px]">
+            {positive_points.map((point, index) => (
+              <AnimatedListItem key={index} iconColor="text-green-400">{point}</AnimatedListItem>
             ))}
           </ul>
         </div>
@@ -51,12 +68,9 @@ const AnalysisResult: React.FC<AnalysisResultProps> = ({ result, imageSrc }) => 
             <LightbulbIcon />
             نکاتی برای بهبود
           </h3>
-          <ul className="space-y-3 text-gray-300">
-            {result.improvement_tips.map((tip, index) => (
-              <li key={index} className="flex items-start">
-                <span className="text-yellow-400 mr-2 ml-2">&#8226;</span>
-                <span>{tip}</span>
-              </li>
+          <ul className="space-y-3 text-gray-300 min-h-[100px]">
+            {improvement_tips.map((tip, index) => (
+              <AnimatedListItem key={index} iconColor="text-yellow-400">{tip}</AnimatedListItem>
             ))}
           </ul>
         </div>

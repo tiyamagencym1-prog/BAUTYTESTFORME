@@ -1,9 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import WebcamCapture from './components/WebcamCapture';
 import AnalysisResult from './components/AnalysisResult';
 import Spinner from './components/Spinner';
-import { BeautyAnalysis } from './types';
-import { analyzeImageForBeauty } from './services/geminiService';
+import { analyzeImageForBeauty, AnalysisUpdate } from './services/geminiService';
 import RetryIcon from './components/RetryIcon';
 import Introduction from './components/Introduction';
 
@@ -12,26 +11,83 @@ type AppState = 'INTRODUCTION' | 'IDLE' | 'CAPTURING' | 'ANALYZING' | 'RESULT' |
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('INTRODUCTION');
   const [imageSrc, setImageSrc] = useState<string | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<BeautyAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState<string>('در حال تحلیل تصویر شما... لطفا صبر کنید.');
+
+  // State for streaming results
+  const [score, setScore] = useState<number | null>(null);
+  const [positivePoints, setPositivePoints] = useState<string[]>([]);
+  const [improvementTips, setImprovementTips] = useState<string[]>([]);
+
+
+  const loadingMessages = [
+    'در حال تحلیل تقارن چهره شما...',
+    'بررسی ویژگی‌های منحصر به فرد شما...',
+    'هوش مصنوعی در حال آماده‌سازی نکات شخصی شماست...',
+    'این فرآیند ممکن است چند لحظه طول بکشد، از صبوری شما متشکریم.',
+  ];
+
+  useEffect(() => {
+    let interval: number | undefined;
+    if (appState === 'ANALYZING') {
+      let messageIndex = 0;
+      interval = setInterval(() => {
+        messageIndex = (messageIndex + 1) % loadingMessages.length;
+        setLoadingMessage(loadingMessages[messageIndex]);
+      }, 3000);
+    }
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+        setLoadingMessage('در حال تحلیل تصویر شما... لطفا صبر کنید.');
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appState]);
+
+  const resetAnalysisState = () => {
+    setScore(null);
+    setPositivePoints([]);
+    setImprovementTips([]);
+  };
+
+  const handleAnalysis = useCallback(async (imgToAnalyze: string) => {
+    setError(null);
+    resetAnalysisState();
+    setAppState('ANALYZING');
+
+    const handleUpdate = (update: AnalysisUpdate) => {
+        if (appState !== 'RESULT') {
+            setAppState('RESULT'); // Transition to result view on first piece of data
+        }
+        switch (update.type) {
+            case 'SCORE':
+                setScore(update.value);
+                break;
+            case 'POSITIVE':
+                setPositivePoints(prev => [...prev, update.value]);
+                break;
+            case 'TIP':
+                setImprovementTips(prev => [...prev, update.value]);
+                break;
+            case 'ERROR':
+                setError(update.value);
+                setAppState('ERROR');
+                break;
+            case 'DONE':
+                // Analysis is complete. No specific action needed as data is already populated.
+                break;
+        }
+    };
+
+    await analyzeImageForBeauty(imgToAnalyze, handleUpdate);
+  }, [appState]);
+
 
   const handleCapture = useCallback((capturedImageSrc: string) => {
     setImageSrc(capturedImageSrc);
-    setAppState('ANALYZING');
     handleAnalysis(capturedImageSrc);
-  }, []);
-  
-  const handleAnalysis = useCallback(async (imgToAnalyze: string) => {
-    setError(null);
-    try {
-      const result = await analyzeImageForBeauty(imgToAnalyze);
-      setAnalysisResult(result);
-      setAppState('RESULT');
-    } catch (err: any) {
-      setError(err.message || "یک خطای ناشناخته رخ داد.");
-      setAppState('ERROR');
-    }
-  }, []);
+  }, [handleAnalysis]);
 
   const handleCameraError = useCallback((errorMessage: string) => {
     setError(errorMessage);
@@ -41,8 +97,8 @@ const App: React.FC = () => {
   const handleReset = () => {
     setAppState('IDLE');
     setImageSrc(null);
-    setAnalysisResult(null);
     setError(null);
+    resetAnalysisState();
   };
 
   const handleStart = () => {
@@ -65,16 +121,21 @@ const App: React.FC = () => {
         return <WebcamCapture onCapture={handleCapture} onCameraError={handleCameraError} />;
       case 'ANALYZING':
         return (
-          <div className="flex flex-col items-center justify-center space-y-4">
+          <div className="flex flex-col items-center justify-center space-y-4 text-center">
             <Spinner />
-            <p className="text-xl">در حال تحلیل تصویر شما... لطفا صبر کنید.</p>
+            <p className="text-xl transition-opacity duration-500 ease-in-out">{loadingMessage}</p>
           </div>
         );
       case 'RESULT':
-        if (analysisResult && imageSrc) {
-          return <AnalysisResult result={analysisResult} imageSrc={imageSrc} />;
+        if (imageSrc) {
+          return <AnalysisResult 
+                    score={score} 
+                    positive_points={positivePoints} 
+                    improvement_tips={improvementTips} 
+                    imageSrc={imageSrc} 
+                />;
         }
-        return null; // Should not happen
+        return null;
       case 'ERROR':
         return (
           <div className="text-center bg-red-900 bg-opacity-30 border border-red-500 p-8 rounded-lg max-w-md mx-auto">
